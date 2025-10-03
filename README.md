@@ -37,6 +37,26 @@ This application provides role-based dashboards for **Admin, Manager, and Employ
 
 ---
 
+## 🖼️ Screenshots
+
+### 🔑 Authentication
+![Login Page](<img width="1917" height="867" alt="image" src="https://github.com/user-attachments/assets/75be8cf5-1e47-4df0-a82d-2c1f4703768d" />)
+
+### 🛠️ Admin Dashboard
+![Admin Dashboard](<img width="1919" height="871" alt="image" src="https://github.com/user-attachments/assets/3a89af66-3a01-4034-85a7-670ec551b551" />)
+
+### 👨‍💼 Manager Dashboard
+![Manager Dashboard](<img width="1918" height="869" alt="image" src="https://github.com/user-attachments/assets/87e803e2-9bfb-476c-aac7-72956635beae" />)
+
+### 👩‍💻 Employee Dashboard
+![Employee Dashboard](<img width="1913" height="873" alt="image" src="https://github.com/user-attachments/assets/4b094c2b-05f4-4fba-8d3c-7bf133d09abc" />)
+
+### 📊 Project Tracking (Gantt Chart)
+![Gantt Chart](./screenshots/gantt.png)
+
+
+---
+
 ## 🛠️ Tech Stack
 
 **Frontend:**

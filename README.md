@@ -1,28 +1,12 @@
-Perfect ✅ I see your project is a **React + TypeScript + Tailwind + Vite** app with backend routes and dashboards for **Admin, Manager, and Employee**. It looks like a **Manpower Management System** with authentication, dashboards, employee/project/task management, and notifications.
-
-I’ll now generate a professional `README.md` for GitHub with these sections:
-
-* Title & Description
-* Features
-* Tech Stack
-* Project Structure
-* Installation & Setup
-* Usage
-* Environment Variables
-* Contributing
-* License
-
-Here’s a draft:
-
 ---
 
-```markdown
-# Manpower Management System
+
+##Taskvise
 
 A full-stack manpower management system built with **React, TypeScript, TailwindCSS, Node.js, and Firebase**.  
 This application provides role-based dashboards for **Admin, Manager, and Employee**, helping organizations streamline employee, project, and task management.
 
----
+
 
 ## 🚀 Features
 

@@ -10,14 +10,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Filter, PlayCircle, CheckCircle2, Eye, Clock, Calendar } from 'lucide-react';
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Filter, PlayCircle, CheckCircle2, Eye, Clock, Calendar, X, AlertCircle } from 'lucide-react';
 
 interface TasksViewProps {
   tasks: any[];
   filteredTasks: any[];
   taskFilters: any;
   setTaskFilters: (filters: any) => void;
-  updateTaskStatus: (taskId: string, status: string) => void;
+  updateTaskStatus: (taskId: string, status: string) => Promise<void>;
   startTimer: (taskId: string) => void;
   setSelectedTask: (task: any) => void;
   setTaskDetailsOpen: (open: boolean) => void;
@@ -42,21 +49,46 @@ export const TasksView = ({
   const projects = Array.from(new Set(tasks.map(task => task.project).filter(Boolean)));
   const [searchTerm, setSearchTerm] = useState('');
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
+  const [selectedTask, setSelectedTaskState] = useState<any>(null);
+  const [isTaskDetailsOpen, setIsTaskDetailsOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleTaskClick = (task: any) => {
+    setSelectedTaskState(task);
     setSelectedTask(task);
+    setIsTaskDetailsOpen(true);
     setTaskDetailsOpen(true);
+  };
+
+  const handleCloseTaskDetails = () => {
+    setIsTaskDetailsOpen(false);
+    setSelectedTaskState(null);
+    setSelectedTask(null);
+    setTaskDetailsOpen(false);
+    setError(null);
   };
 
   const handleUpdateStatus = async (taskId: string, status: string) => {
     try {
       setUpdatingTaskId(taskId);
+      setError(null);
       console.log('Updating task status:', { taskId, status });
       
       // Validate task exists
       const taskExists = tasks.find(task => task.id === taskId);
       if (!taskExists) {
-        console.error('Task not found:', taskId);
+        const errorMsg = 'Task not found';
+        setError(errorMsg);
+        console.error(errorMsg, taskId);
+        return;
+      }
+
+      // Validate status
+      const validStatuses = ['pending', 'in-progress', 'completed', 'overdue'];
+      if (!validStatuses.includes(status)) {
+        const errorMsg = 'Invalid status provided';
+        setError(errorMsg);
+        console.error(errorMsg, status);
         return;
       }
 
@@ -64,10 +96,18 @@ export const TasksView = ({
       await updateTaskStatus(taskId, status);
       console.log('Task status updated successfully');
       
+      // If we're viewing this task's details, update the local state
+      if (selectedTask && selectedTask.id === taskId) {
+        setSelectedTaskState({
+          ...selectedTask,
+          status: status
+        });
+      }
+      
     } catch (error) {
+      const errorMsg = `Failed to update task status: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      setError(errorMsg);
       console.error('Error updating task status:', error);
-      // You can add a toast notification here if you have a toast system
-      // toast.error('Failed to update task status');
     } finally {
       setUpdatingTaskId(null);
     }
@@ -96,11 +136,216 @@ export const TasksView = ({
     }
   };
 
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'completed': return 'default';
+      case 'in-progress': return 'secondary';
+      case 'overdue': return 'destructive';
+      default: return 'outline';
+    }
+  };
+
+  const getPriorityBadgeVariant = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'destructive';
+      case 'medium': return 'default';
+      default: return 'secondary';
+    }
+  };
+
   // Further filter by search term
   const finalFilteredTasks = filteredTasks.filter(task =>
     task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  // Task Details Modal Component
+  const TaskDetailsModal = () => {
+    if (!selectedTask) return null;
+
+    const timeRemaining = getTimeRemaining(selectedTask.dueDate);
+    const isTaskCompleted = selectedTask.status === 'completed';
+
+    return (
+      <Dialog open={isTaskDetailsOpen} onOpenChange={handleCloseTaskDetails}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Task Details</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleCloseTaskDetails}
+                className="h-6 w-6"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogTitle>
+            <DialogDescription>
+              Detailed information about the selected task
+            </DialogDescription>
+          </DialogHeader>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <div className="flex items-center gap-2 text-red-800">
+                <AlertCircle className="h-4 w-4" />
+                <span className="text-sm font-medium">{error}</span>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-6">
+            {/* Task Header */}
+            <div className="space-y-3">
+              <div className="flex items-start justify-between">
+                <h3 className="text-xl font-semibold">{selectedTask.title}</h3>
+                <div className="flex gap-2 flex-wrap justify-end">
+                  <Badge variant={getPriorityBadgeVariant(selectedTask.priority)}>
+                    {selectedTask.priority} Priority
+                  </Badge>
+                  <Badge variant={getStatusBadgeVariant(selectedTask.status)}>
+                    {selectedTask.status.replace('-', ' ')}
+                  </Badge>
+                  {selectedTask.dueDate && (
+                    <Badge variant="outline" className={getDueDateColor(timeRemaining.status)}>
+                      <Calendar className="h-3 w-3 mr-1" />
+                      {timeRemaining.status === 'overdue' ? `${timeRemaining.days}d overdue` :
+                       timeRemaining.status === 'today' ? 'Due today' :
+                       timeRemaining.status === 'urgent' ? `${timeRemaining.days}d left` :
+                       `${timeRemaining.days}d left`}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              
+              <p className="text-muted-foreground">
+                {selectedTask.description || 'No description available'}
+              </p>
+            </div>
+
+            {/* Task Information Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Project</label>
+                  <p className="font-medium">{selectedTask.project || 'No project'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Area</label>
+                  <p className="font-medium">{selectedTask.area || 'No area specified'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Assigned By</label>
+                  <p className="font-medium">{selectedTask.assignedByName || 'Unknown'}</p>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Due Date</label>
+                  <p className="font-medium">
+                    {selectedTask.dueDate ? new Date(selectedTask.dueDate).toLocaleDateString() : 'No due date'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Time Estimate</label>
+                  <p className="font-medium">
+                    Estimated: {selectedTask.estimatedHours || 0}h | 
+                    Actual: {Math.round((selectedTask.actualHours || 0) * 10) / 10}h
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Created</label>
+                  <p className="font-medium">
+                    {selectedTask.createdAt ? new Date(selectedTask.createdAt).toLocaleDateString() : 'Unknown'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Task Actions */}
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-3">Task Actions</h4>
+              <div className="flex flex-wrap gap-2">
+                {!isTaskCompleted && (
+                  <>
+                    <Button
+                      onClick={() => handleUpdateStatus(selectedTask.id, 'in-progress')}
+                      disabled={updatingTaskId === selectedTask.id || selectedTask.status === 'in-progress'}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Clock className="h-4 w-4 mr-2" />
+                      {updatingTaskId === selectedTask.id ? 'Updating...' : 'Mark In Progress'}
+                    </Button>
+                    
+                    <Button
+                      onClick={() => startTimer(selectedTask.id)}
+                      disabled={activeTimer !== null && activeTimer !== selectedTask.id}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <PlayCircle className={`h-4 w-4 mr-2 ${activeTimer === selectedTask.id ? 'text-green-600' : ''}`} />
+                      {activeTimer === selectedTask.id ? 'Timer Running' : 'Start Timer'}
+                    </Button>
+
+                    <Button
+                      onClick={() => handleUpdateStatus(selectedTask.id, 'completed')}
+                      disabled={updatingTaskId === selectedTask.id}
+                      variant="default"
+                      size="sm"
+                    >
+                      <CheckCircle2 className={`h-4 w-4 mr-2 ${updatingTaskId === selectedTask.id ? 'animate-spin' : ''}`} />
+                      {updatingTaskId === selectedTask.id ? 'Marking...' : 'Mark Completed'}
+                    </Button>
+                  </>
+                )}
+                
+                {selectedTask.status === 'in-progress' && (
+                  <Button
+                    onClick={() => handleUpdateStatus(selectedTask.id, 'pending')}
+                    disabled={updatingTaskId === selectedTask.id}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Clock className="h-4 w-4 mr-2" />
+                    {updatingTaskId === selectedTask.id ? 'Updating...' : 'Mark Pending'}
+                  </Button>
+                )}
+
+                {isTaskCompleted && (
+                  <div className="flex items-center gap-2 text-green-600">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span className="text-sm font-medium">Task Completed</span>
+                    {selectedTask.completedAt && (
+                      <span className="text-xs text-muted-foreground">
+                        on {new Date(selectedTask.completedAt).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Additional Information */}
+            {selectedTask.screenshot && (
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3">Screenshot</h4>
+                <div className="border rounded-lg p-4">
+                  <img 
+                    src={selectedTask.screenshot} 
+                    alt="Task screenshot" 
+                    className="max-w-full h-auto rounded"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
 
   return (
     <div>
@@ -113,7 +358,10 @@ export const TasksView = ({
           <div className="flex items-center gap-3">
             <Button 
               variant="outline" 
-              onClick={() => setTaskFilters({ status: '', priority: '', project: '' })}
+              onClick={() => {
+                setTaskFilters({ status: 'all', priority: 'all', project: 'all' });
+                setSearchTerm('');
+              }}
             >
               <Filter className="h-4 w-4 mr-2" />
               Clear Filters
@@ -180,6 +428,24 @@ export const TasksView = ({
         </Select>
       </div>
 
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center gap-2 text-red-800">
+            <AlertCircle className="h-4 w-4" />
+            <span className="text-sm font-medium">{error}</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setError(null)}
+            className="mt-2 text-red-600 hover:text-red-800"
+          >
+            Dismiss
+          </Button>
+        </div>
+      )}
+
       {/* Tasks Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card className="border-0 shadow-lg">
@@ -221,6 +487,7 @@ export const TasksView = ({
       <div className="space-y-4">
         {finalFilteredTasks.map((task) => {
           const timeRemaining = getTimeRemaining(task.dueDate);
+          const isUpdating = updatingTaskId === task.id;
           
           return (
             <Card key={task.id} className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
@@ -229,11 +496,12 @@ export const TasksView = ({
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
                       <h3 className="font-semibold text-lg">{task.title}</h3>
-                      <Badge className={getPriorityColor(task.priority)}>
+                      <Badge variant={getPriorityBadgeVariant(task.priority)}>
                         {task.priority}
                       </Badge>
-                      <Badge className={getStatusColor(task.status)}>
+                      <Badge variant={getStatusBadgeVariant(task.status)}>
                         {task.status.replace('-', ' ')}
+                        {isUpdating && <span className="ml-1">...</span>}
                       </Badge>
                       {task.dueDate && (
                         <Badge variant="outline" className={getDueDateColor(timeRemaining.status)}>
@@ -246,18 +514,36 @@ export const TasksView = ({
                       )}
                     </div>
                     
-                    <p className="text-muted-foreground mb-3">{task.description || 'No description available'}</p>
+                    <p className="text-muted-foreground mb-3 line-clamp-2">
+                      {task.description || 'No description available'}
+                    </p>
                     
                     <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-                      {task.project && <span>Project: {task.project}</span>}
-                      {task.dueDate && <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>}
-                      <span>Estimated: {task.estimatedHours || 0}h</span>
-                      <span>Actual: {Math.round((task.actualHours || 0) * 10) / 10}h</span>
-                      {task.assignedByName && <span>Assigned by: {task.assignedByName}</span>}
+                      {task.project && (
+                        <span className="flex items-center gap-1">
+                          Project: <span className="font-medium">{task.project}</span>
+                        </span>
+                      )}
+                      {task.dueDate && (
+                        <span className="flex items-center gap-1">
+                          Due: <span className="font-medium">{new Date(task.dueDate).toLocaleDateString()}</span>
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        Estimated: <span className="font-medium">{task.estimatedHours || 0}h</span>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        Actual: <span className="font-medium">{Math.round((task.actualHours || 0) * 10) / 10}h</span>
+                      </span>
+                      {task.assignedByName && (
+                        <span className="flex items-center gap-1">
+                          By: <span className="font-medium">{task.assignedByName}</span>
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 ml-4">
+                  <div className="flex items-center gap-2 ml-4 flex-shrink-0">
                     <Button
                       variant="outline"
                       size="sm"
@@ -268,27 +554,27 @@ export const TasksView = ({
                     </Button>
                     
                     {task.status !== 'completed' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => startTimer(task.id)}
-                        disabled={activeTimer !== null && activeTimer !== task.id}
-                        title={activeTimer === task.id ? "Timer running" : "Start timer"}
-                      >
-                        <PlayCircle className={`h-4 w-4 ${activeTimer === task.id ? 'text-green-600' : ''}`} />
-                      </Button>
-                    )}
-                    
-                    {task.status !== 'completed' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleUpdateStatus(task.id, 'completed')}
-                        disabled={updatingTaskId === task.id}
-                        title="Mark as completed"
-                      >
-                        <CheckCircle2 className={`h-4 w-4 ${updatingTaskId === task.id ? 'animate-spin' : ''}`} />
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => startTimer(task.id)}
+                          disabled={activeTimer !== null && activeTimer !== task.id}
+                          title={activeTimer === task.id ? "Timer running" : "Start timer"}
+                        >
+                          <PlayCircle className={`h-4 w-4 ${activeTimer === task.id ? 'text-green-600' : ''}`} />
+                        </Button>
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleUpdateStatus(task.id, 'completed')}
+                          disabled={isUpdating}
+                          title="Mark as completed"
+                        >
+                          <CheckCircle2 className={`h-4 w-4 ${isUpdating ? 'animate-spin' : ''}`} />
+                        </Button>
+                      </>
                     )}
                     
                     {task.status === 'in-progress' && (
@@ -296,10 +582,10 @@ export const TasksView = ({
                         variant="outline"
                         size="sm"
                         onClick={() => handleUpdateStatus(task.id, 'pending')}
-                        disabled={updatingTaskId === task.id}
+                        disabled={isUpdating}
                         title="Mark as pending"
                       >
-                        <Clock className={`h-4 w-4 ${updatingTaskId === task.id ? 'animate-spin' : ''}`} />
+                        <Clock className={`h-4 w-4 ${isUpdating ? 'animate-spin' : ''}`} />
                       </Button>
                     )}
                   </div>
@@ -321,11 +607,26 @@ export const TasksView = ({
                     : "No tasks match your current filters."
                   }
                 </p>
+                {(taskFilters.status !== 'all' || taskFilters.priority !== 'all' || taskFilters.project !== 'all' || searchTerm) && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setTaskFilters({ status: 'all', priority: 'all', project: 'all' });
+                      setSearchTerm('');
+                    }}
+                    className="mt-4"
+                  >
+                    Clear all filters
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
         )}
       </div>
+
+      {/* Task Details Modal */}
+      <TaskDetailsModal />
     </div>
   );
 };

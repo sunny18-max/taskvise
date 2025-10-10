@@ -7,15 +7,22 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { Landing } from "./pages/Landing";
 import { Auth } from "./pages/Auth";
-import { AdminDashboard } from "./components/admin/AdminDashboard";
-import { EditEmployeeForm } from '@/components/admin/EditEmployeeForm';
-import { AddEmployeeForm } from "./components/admin/AddEmployeeForm"; // Import the new component
-import { ManagerDashboard } from "./pages/ManagerDashboard";
-import { EmployeeDashboard } from "./pages/EmployeeDashboard";
+import { AdminDashboard } from "./pages/admin/AdminDashboard";
+import { EditEmployeeForm } from '@/pages/admin/EditEmployeeForm';
+import { AddEmployeeForm } from "./pages/admin/AddEmployeeForm";
+import { ManagerDashboard } from "./pages/manager/ManagerDashboard";
+import { HRDashboard } from "./pages/hr/HRDashboard";
+import { TeamLeadDashboard } from "./pages/teamlead/TeamLeadDashboard";
+import { EmployeeDashboard } from "./pages/employee/EmployeeDashboard";
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { ProfilePage } from "./pages/ProfilePage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { Projects } from './pages/admin/Projects';
+import { Tasks } from './pages/admin/Tasks';
+import { Analytics } from './pages/admin/Analytics';
 import NotFound from "./pages/NotFound";
+import { useEffect } from 'react';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 const queryClient = new QueryClient();
 
@@ -32,7 +39,7 @@ const App = () => (
               <Route path="/" element={<Landing />} />
               <Route path="/auth" element={<Auth />} />
               
-              {/* Role-based Dashboard Routes */}
+              {/* Admin Routes */}
               <Route path="/admin/dashboard" element={
                 <ProtectedRoute requiredRole="admin">
                   <AdminDashboard />
@@ -57,13 +64,83 @@ const App = () => (
                 </ProtectedRoute>
               } />
               
+              {/* Manager Routes */}
               <Route path="/manager/dashboard" element={
                 <ProtectedRoute requiredRole="manager">
                   <ManagerDashboard />
                 </ProtectedRoute>
               } />
               
+              {/* HR Routes */}
+              <Route path="/hr/dashboard" element={
+                <ProtectedRoute requiredRole="hr">
+                  <HRDashboard />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/hr/employees" element={
+                <ProtectedRoute requiredRole="hr">
+                  <HRDashboard />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/hr/recruitment" element={
+                <ProtectedRoute requiredRole="hr">
+                  <HRDashboard />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/hr/attendance" element={
+                <ProtectedRoute requiredRole="hr">
+                  <HRDashboard />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/hr/reports" element={
+                <ProtectedRoute requiredRole="hr">
+                  <HRDashboard />
+                </ProtectedRoute>
+              } />
+              
+              {/* Team Lead Routes */}
+              <Route path="/teamlead/dashboard" element={
+                <ProtectedRoute requiredRole="teamlead">
+                  <TeamLeadDashboard />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/teamlead/team" element={
+                <ProtectedRoute requiredRole="teamlead">
+                  <TeamLeadDashboard />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/teamlead/projects" element={
+                <ProtectedRoute requiredRole="teamlead">
+                  <TeamLeadDashboard />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/teamlead/tasks" element={
+                <ProtectedRoute requiredRole="teamlead">
+                  <TeamLeadDashboard />
+                </ProtectedRoute>
+              } />
+              
+              {/* Employee Routes */}
               <Route path="/employee/dashboard" element={
+                <ProtectedRoute requiredRole="employee">
+                  <EmployeeDashboard />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/employee/tasks" element={
+                <ProtectedRoute requiredRole="employee">
+                  <EmployeeDashboard />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/employee/schedule" element={
                 <ProtectedRoute requiredRole="employee">
                   <EmployeeDashboard />
                 </ProtectedRoute>
@@ -76,15 +153,15 @@ const App = () => (
                 </ProtectedRoute>
               } />
 
-              {/* Profile and Settings Routes */}
+              {/* Profile and Settings Routes - Accessible to all roles */}
               <Route path="/profile" element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={['admin', 'manager', 'hr', 'teamlead', 'employee']}>
                   <ProfilePage />
                 </ProtectedRoute>
               } />
               
               <Route path="/settings" element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={['admin', 'manager', 'hr', 'teamlead', 'employee']}>
                   <SettingsPage />
                 </ProtectedRoute>
               } />
@@ -102,6 +179,18 @@ const App = () => (
                 </ProtectedRoute>
               } />
               
+              <Route path="/hr" element={
+                <ProtectedRoute requiredRole="hr">
+                  <Navigate to="/hr/dashboard" replace />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/teamlead" element={
+                <ProtectedRoute requiredRole="teamlead">
+                  <Navigate to="/teamlead/dashboard" replace />
+                </ProtectedRoute>
+              } />
+              
               <Route path="/employee" element={
                 <ProtectedRoute requiredRole="employee">
                   <Navigate to="/employee/dashboard" replace />
@@ -110,6 +199,9 @@ const App = () => (
 
               {/* Catch-all route */}
               <Route path="*" element={<NotFound />} />
+              <Route path="/admin/projects" element={<Projects />} />
+              <Route path="/admin/tasks" element={<Tasks />} />
+              <Route path="/admin/analytics" element={<Analytics />} />
             </Routes>
           </AuthProvider>
         </BrowserRouter>
@@ -131,6 +223,12 @@ const DashboardRedirect = () => {
         case 'manager':
           window.location.href = '/manager/dashboard';
           break;
+        case 'hr':
+          window.location.href = '/hr/dashboard';
+          break;
+        case 'teamlead':
+          window.location.href = '/teamlead/dashboard';
+          break;
         case 'employee':
           window.location.href = '/employee/dashboard';
           break;
@@ -150,9 +248,5 @@ const DashboardRedirect = () => {
     </div>
   );
 };
-
-// You'll need to create this hook if it doesn't exist
-import { useEffect } from 'react';
-import { useAuth } from '@/components/auth/AuthProvider';
 
 export default App;

@@ -26,7 +26,7 @@ const employeeSchema = z.object({
   designation: z.string().min(1, 'Designation is required'),
   department: z.string().min(1, 'Department is required'),
   skills: z.array(z.string()).min(1, 'At least one skill is required'),
-  role: z.enum(['admin', 'manager', 'employee'], {
+  role: z.enum(['admin', 'manager', 'employee', 'hr', 'teamlead'], {
     required_error: 'Please select a role',
   }),
 });
@@ -310,6 +310,8 @@ export const UnifiedSignupForm = ({ onToggleMode, onCredentialsGenerated }: Empl
                         <SelectContent>
                           <SelectItem value="admin">Admin</SelectItem>
                           <SelectItem value="manager">Manager</SelectItem>
+                          <SelectItem value="hr">HR</SelectItem>
+                          <SelectItem value="teamlead">Team Lead</SelectItem>
                           <SelectItem value="employee">Employee</SelectItem>
                         </SelectContent>
                       </Select>

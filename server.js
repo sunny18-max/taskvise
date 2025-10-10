@@ -84,6 +84,155 @@ const convertFirestoreData = (data) => {
   return converted;
 };
 
+// Get tasks for specific employee
+app.get('/api/tasks/employee/:employeeId', verifyToken, async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    
+    const tasksSnapshot = await db.collection('tasks')
+      .where('assignedTo', '==', employeeId)
+      .orderBy('createdAt', 'desc')
+      .get();
+
+    const tasks = await Promise.all(
+      tasksSnapshot.docs.map(async (doc) => {
+        const taskData = convertFirestoreData(doc.data());
+        
+        if (taskData.project) {
+          try {
+            const projectDoc = await db.collection('projects').doc(taskData.project).get();
+            if (projectDoc.exists) {
+              taskData.projectName = projectDoc.data().name;
+            }
+          } catch (error) {
+            taskData.projectName = taskData.project;
+          }
+        }
+
+        return {
+          id: doc.id,
+          ...taskData
+        };
+      })
+    );
+
+    res.json(tasks);
+  } catch (error) {
+    console.error('Error fetching employee tasks:', error);
+    res.status(500).json({ error: 'Failed to fetch employee tasks' });
+  }
+});
+
+// Get projects for specific employee
+app.get('/api/projects/employee/:employeeId', verifyToken, async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    
+    const projectsSnapshot = await db.collection('projects').get();
+    
+    let projects = projectsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...convertFirestoreData(doc.data())
+    }));
+
+    // Filter projects where user is a team member
+    projects = projects.filter(project => 
+      project.teamMembers && project.teamMembers.includes(employeeId)
+    );
+
+    // Calculate project stats
+    const projectsWithStats = await Promise.all(
+      projects.map(async (project) => {
+        const tasksSnapshot = await db.collection('tasks')
+          .where('project', '==', project.id)
+          .where('assignedTo', '==', employeeId)
+          .get();
+        
+        const projectTasks = tasksSnapshot.docs.map(doc => convertFirestoreData(doc.data()));
+        const totalTasks = projectTasks.length;
+        const completedTasks = projectTasks.filter(task => task.status === 'completed').length;
+        const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+        return {
+          ...project,
+          totalTasks,
+          completedTasks,
+          progress
+        };
+      })
+    );
+
+    res.json(projectsWithStats);
+  } catch (error) {
+    console.error('Error fetching employee projects:', error);
+    res.status(500).json({ error: 'Failed to fetch employee projects' });
+  }
+});
+
+// Get work sessions for specific employee
+app.get('/api/work-sessions/employee/:employeeId', verifyToken, async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    const { limit = 100 } = req.query;
+    
+    const sessionsSnapshot = await db.collection('workSessions')
+      .where('userId', '==', employeeId)
+      .orderBy('startTime', 'desc')
+      .limit(parseInt(limit))
+      .get();
+
+    const sessions = sessionsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...convertFirestoreData(doc.data())
+    }));
+
+    res.json(sessions);
+  } catch (error) {
+    console.error('Error fetching employee work sessions:', error);
+    res.status(500).json({ error: 'Failed to fetch employee work sessions' });
+  }
+});
+
+// Get notifications for specific employee
+app.get('/api/notifications/employee/:employeeId', verifyToken, async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    const { limit = 50 } = req.query;
+    
+    const notificationsSnapshot = await db.collection('notifications')
+      .where('userId', '==', employeeId)
+      .orderBy('createdAt', 'desc')
+      .limit(parseInt(limit))
+      .get();
+
+    const notifications = notificationsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...convertFirestoreData(doc.data())
+    }));
+
+    res.json(notifications);
+  } catch (error) {
+    console.error('Error fetching employee notifications:', error);
+    res.status(500).json({ error: 'Failed to fetch employee notifications' });
+  }
+});
+
+// Get team members endpoint
+app.get('/api/team-members', verifyToken, async (req, res) => {
+  try {
+    const usersSnapshot = await db.collection('users').get();
+    const teamMembers = usersSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...convertFirestoreData(doc.data())
+    }));
+
+    res.json(teamMembers);
+  } catch (error) {
+    console.error('Error fetching team members:', error);
+    res.status(500).json({ error: 'Failed to fetch team members' });
+  }
+});
+
 // ===== AUTHENTICATION ENDPOINTS =====
 
 // User registration/signup
@@ -1098,7 +1247,7 @@ app.put('/api/tasks/:taskId', verifyToken, async (req, res) => {
   }
 });
 
-// Update task status - FIXED ENDPOINT
+// Update task status - FIXED PERMISSION ISSUE
 app.put('/api/tasks/:taskId/status', verifyToken, async (req, res) => {
   try {
     const { taskId } = req.params;
@@ -1110,7 +1259,7 @@ app.put('/api/tasks/:taskId/status', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Status is required' });
     }
 
-    // Validate task exists and user has permission
+    // Validate task exists
     const taskDoc = await db.collection('tasks').doc(taskId).get();
     if (!taskDoc.exists) {
       return res.status(404).json({ error: 'Task not found' });
@@ -1118,8 +1267,14 @@ app.put('/api/tasks/:taskId/status', verifyToken, async (req, res) => {
 
     const task = taskDoc.data();
     
-    // Check if user is assigned to this task
-    if (task.assignedTo !== req.user.uid) {
+    // FIX: Check if user is assigned to this task OR is admin/manager
+    const userDoc = await db.collection('users').doc(req.user.uid).get();
+    const user = userDoc.data();
+    
+    const isAssignedUser = task.assignedTo === req.user.uid;
+    const isAdminOrManager = user.role === 'admin' || user.role === 'manager';
+    
+    if (!isAssignedUser && !isAdminOrManager) {
       return res.status(403).json({ error: 'Not authorized to update this task' });
     }
 
@@ -1934,6 +2089,157 @@ app.delete('/api/notifications/:notificationId', verifyToken, async (req, res) =
     res.json({ message: 'Notification deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete notification' });
+  }
+});
+
+// ===== EMPLOYEE-SPECIFIC ENDPOINTS =====
+
+// Get tasks for specific employee
+app.get('/api/tasks/employee/:employeeId', verifyToken, async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    
+    const tasksSnapshot = await db.collection('tasks')
+      .where('assignedTo', '==', employeeId)
+      .orderBy('createdAt', 'desc')
+      .get();
+
+    const tasks = await Promise.all(
+      tasksSnapshot.docs.map(async (doc) => {
+        const taskData = convertFirestoreData(doc.data());
+        
+        if (taskData.project) {
+          try {
+            const projectDoc = await db.collection('projects').doc(taskData.project).get();
+            if (projectDoc.exists) {
+              taskData.projectName = projectDoc.data().name;
+            }
+          } catch (error) {
+            taskData.projectName = taskData.project;
+          }
+        }
+
+        return {
+          id: doc.id,
+          ...taskData
+        };
+      })
+    );
+
+    res.json(tasks);
+  } catch (error) {
+    console.error('Error fetching employee tasks:', error);
+    res.status(500).json({ error: 'Failed to fetch employee tasks' });
+  }
+});
+
+// Get projects for specific employee
+app.get('/api/projects/employee/:employeeId', verifyToken, async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    
+    const projectsSnapshot = await db.collection('projects').get();
+    
+    let projects = projectsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...convertFirestoreData(doc.data())
+    }));
+
+    // Filter projects where user is a team member
+    projects = projects.filter(project => 
+      project.teamMembers && project.teamMembers.includes(employeeId)
+    );
+
+    // Calculate project stats
+    const projectsWithStats = await Promise.all(
+      projects.map(async (project) => {
+        const tasksSnapshot = await db.collection('tasks')
+          .where('project', '==', project.id)
+          .where('assignedTo', '==', employeeId)
+          .get();
+        
+        const projectTasks = tasksSnapshot.docs.map(doc => convertFirestoreData(doc.data()));
+        const totalTasks = projectTasks.length;
+        const completedTasks = projectTasks.filter(task => task.status === 'completed').length;
+        const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+        return {
+          ...project,
+          totalTasks,
+          completedTasks,
+          progress
+        };
+      })
+    );
+
+    res.json(projectsWithStats);
+  } catch (error) {
+    console.error('Error fetching employee projects:', error);
+    res.status(500).json({ error: 'Failed to fetch employee projects' });
+  }
+});
+
+// Get work sessions for specific employee
+app.get('/api/work-sessions/employee/:employeeId', verifyToken, async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    const { limit = 100 } = req.query;
+    
+    const sessionsSnapshot = await db.collection('workSessions')
+      .where('userId', '==', employeeId)
+      .orderBy('startTime', 'desc')
+      .limit(parseInt(limit))
+      .get();
+
+    const sessions = sessionsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...convertFirestoreData(doc.data())
+    }));
+
+    res.json(sessions);
+  } catch (error) {
+    console.error('Error fetching employee work sessions:', error);
+    res.status(500).json({ error: 'Failed to fetch employee work sessions' });
+  }
+});
+
+// Get notifications for specific employee
+app.get('/api/notifications/employee/:employeeId', verifyToken, async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    const { limit = 50 } = req.query;
+    
+    const notificationsSnapshot = await db.collection('notifications')
+      .where('userId', '==', employeeId)
+      .orderBy('createdAt', 'desc')
+      .limit(parseInt(limit))
+      .get();
+
+    const notifications = notificationsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...convertFirestoreData(doc.data())
+    }));
+
+    res.json(notifications);
+  } catch (error) {
+    console.error('Error fetching employee notifications:', error);
+    res.status(500).json({ error: 'Failed to fetch employee notifications' });
+  }
+});
+
+// Get team members endpoint
+app.get('/api/team-members', verifyToken, async (req, res) => {
+  try {
+    const usersSnapshot = await db.collection('users').get();
+    const teamMembers = usersSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...convertFirestoreData(doc.data())
+    }));
+
+    res.json(teamMembers);
+  } catch (error) {
+    console.error('Error fetching team members:', error);
+    res.status(500).json({ error: 'Failed to fetch team members' });
   }
 });
 

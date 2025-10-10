@@ -201,6 +201,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       case 'manager':
         navigate('/manager/dashboard', { replace: true });
         break;
+      case 'hr':
+        navigate('/hr/dashboard', { replace: true });
+        break;
+      case 'teamlead':
+        navigate('/teamlead/dashboard', { replace: true });
+        break;
       case 'employee':
         navigate('/employee/dashboard', { replace: true });
         break;

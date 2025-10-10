@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Copy, Eye, EyeOff, UserCheck, CheckCircle, Shield, Users, UserPlus } from 'lucide-react';
+import { Copy, Eye, EyeOff, UserCheck, CheckCircle, Shield, Users, UserPlus, Users2, Target } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import AOS from 'aos';
@@ -10,7 +10,7 @@ interface EnhancedCredentialsProps {
   employeeName: string;
   username: string;
   password: string;
-  role: 'admin' | 'manager' | 'employee';
+  role: 'admin' | 'manager' | 'employee' | 'hr' | 'teamlead';
   onCreateAnother: () => void;
   onGoToSignIn: () => void;
 }
@@ -48,6 +48,10 @@ export const EnhancedCredentials = ({
         return Shield;
       case 'manager':
         return Users;
+      case 'hr':
+        return Users2;
+      case 'teamlead':
+        return Target;
       default:
         return UserCheck;
     }
@@ -59,6 +63,10 @@ export const EnhancedCredentials = ({
         return 'bg-red-500';
       case 'manager':
         return 'bg-green-500';
+      case 'hr':
+        return 'bg-purple-500';
+      case 'teamlead':
+        return 'bg-orange-500';
       default:
         return 'bg-blue-500';
     }
@@ -70,6 +78,10 @@ export const EnhancedCredentials = ({
         return 'Admin Credentials Generated!';
       case 'manager':
         return 'Manager Credentials Generated!';
+      case 'hr':
+        return 'HR Credentials Generated!';
+      case 'teamlead':
+        return 'Team Lead Credentials Generated!';
       default:
         return 'Employee Credentials Generated!';
     }
@@ -81,8 +93,27 @@ export const EnhancedCredentials = ({
         return 'Administrator account with full system access';
       case 'manager':
         return 'Manager account with team management access';
+      case 'hr':
+        return 'HR account with employee management access';
+      case 'teamlead':
+        return 'Team Lead account with project team access';
       default:
         return 'Employee account created successfully';
+    }
+  };
+
+  const getRoleAccessDescription = () => {
+    switch (role) {
+      case 'admin':
+        return 'Admin access includes all system privileges';
+      case 'manager':
+        return 'Manager access includes team management features';
+      case 'hr':
+        return 'HR access includes employee management and HR features';
+      case 'teamlead':
+        return 'Team Lead access includes project team management';
+      default:
+        return 'Employee can access personal dashboard and tasks';
     }
   };
 
@@ -172,7 +203,7 @@ export const EnhancedCredentials = ({
               <ul className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
                 <li>• Share these credentials with the employee</li>
                 <li>• Employee must login separately to access their dashboard</li>
-                <li>• {role === 'admin' ? 'Admin access includes all system privileges' : role === 'manager' ? 'Manager access includes team management features' : 'Employee can access personal dashboard and tasks'}</li>
+                <li>• {getRoleAccessDescription()}</li>
                 <li>• Change password after first login</li>
                 <li>• Contact admin for any access issues</li>
               </ul>

@@ -1,4 +1,3 @@
-// DashboardLayout.tsx - Updated
 import { ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -17,8 +16,12 @@ import {
   User, 
   Settings,
   Bell,
-  Menu,
-  X
+  Users,
+  UserPlus,
+  Target,
+  BarChart3,
+  Calendar,
+  FileText
 } from 'lucide-react';
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
@@ -47,6 +50,10 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         return 'bg-red-500';
       case 'manager':
         return 'bg-green-500';
+      case 'hr':
+        return 'bg-purple-500';
+      case 'teamlead':
+        return 'bg-orange-500';
       default:
         return 'bg-blue-500';
     }
@@ -58,6 +65,10 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         return 'Administrator';
       case 'manager':
         return 'Manager';
+      case 'hr':
+        return 'HR Manager';
+      case 'teamlead':
+        return 'Team Lead';
       default:
         return 'Employee';
     }
@@ -74,17 +85,41 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       case 'admin':
         return [
           { path: '/admin/dashboard', label: 'Dashboard', icon: Building2 },
-          { path: '/admin/employees', label: 'Employees', icon: User },
+          { path: '/admin/employees', label: 'Employees', icon: Users },
+          { path: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
+          { path: '/admin/reports', label: 'Reports', icon: FileText },
           ...baseItems
         ];
       case 'manager':
         return [
           { path: '/manager/dashboard', label: 'Dashboard', icon: Building2 },
+          { path: '/manager/team', label: 'My Team', icon: Users },
+          { path: '/manager/projects', label: 'Projects', icon: Target },
+          { path: '/manager/calendar', label: 'Calendar', icon: Calendar },
+          ...baseItems
+        ];
+      case 'hr':
+        return [
+          { path: '/hr/dashboard', label: 'Dashboard', icon: Building2 },
+          { path: '/hr/employees', label: 'Employees', icon: Users },
+          { path: '/hr/recruitment', label: 'Recruitment', icon: UserPlus },
+          { path: '/hr/attendance', label: 'Attendance', icon: Calendar },
+          { path: '/hr/reports', label: 'HR Reports', icon: FileText },
+          ...baseItems
+        ];
+      case 'teamlead':
+        return [
+          { path: '/teamlead/dashboard', label: 'Dashboard', icon: Building2 },
+          { path: '/teamlead/team', label: 'My Team', icon: Users },
+          { path: '/teamlead/projects', label: 'Projects', icon: Target },
+          { path: '/teamlead/tasks', label: 'Tasks', icon: FileText },
           ...baseItems
         ];
       case 'employee':
         return [
           { path: '/employee/dashboard', label: 'Dashboard', icon: Building2 },
+          { path: '/employee/tasks', label: 'My Tasks', icon: FileText },
+          { path: '/employee/schedule', label: 'Schedule', icon: Calendar },
           ...baseItems
         ];
       default:
@@ -101,18 +136,9 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <div className="flex h-16 items-center justify-between px-6">
           {/* Logo and Title */}
           <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="md:hidden"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-            >
-              {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-            </Button>
-            
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-primary">
-                <Building2 className="h-5 w-5 text-white" />
+              <div className="flex h-10 w-10 items-center justify-center rounded bg-gradient-primary">
+                <Building2 className="h-6 w-6 text-white" />
               </div>
               <div>
                 <span className="text-xl font-bold text-gradient">TaskVise</span>
@@ -174,35 +200,16 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </div>
       </header>
 
-      {/* Sidebar for mobile */}
-      {sidebarOpen && (
-        <div className="md:hidden">
-          <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setSidebarOpen(false)} />
-          <div className="fixed top-16 left-0 z-50 w-64 h-[calc(100vh-4rem)] bg-background border-r p-4">
-            <nav className="space-y-2">
-              {navigationItems.map((item) => (
-                <Button
-                  key={item.path}
-                  variant={location.pathname === item.path ? "secondary" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => {
-                    navigate(item.path);
-                    setSidebarOpen(false);
-                  }}
-                >
-                  <item.icon className="mr-2 h-4 w-4" />
-                  {item.label}
-                </Button>
-              ))}
-            </nav>
+      {/* Main Content - REMOVED SIDEBAR LAYOUT */}
+      <div className="flex flex-col flex-1">
+        <main className="flex-1">
+          <div className="py-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+              {children || <Outlet />}
+            </div>
           </div>
-        </div>
-      )}
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-6 max-w-7xl">
-        {children || <Outlet />}
-      </main>
+        </main>
+      </div>
     </div>
   );
 };

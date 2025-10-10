@@ -22,31 +22,36 @@ export const Navbar = ({
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
-          <Link to="/" className="flex items-center space-x-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-primary">
-              <Building2 className="h-5 w-5 text-white" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex h-20 items-center justify-between">
+          {/* Logo - Increased size */}
+          <Link to="/" className="flex items-center space-x-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-primary">
+              <Building2 className="h-7 w-7 text-white" />
             </div>
-            <span className="text-xl font-bold text-gradient">TaskVise</span>
+            <div>
+              <span className="text-2xl font-bold text-gradient">TaskVise</span>
+              <p className="text-sm text-muted-foreground hidden sm:block">
+                Streamline Your Workflow
+              </p>
+            </div>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="hidden md:flex items-center space-x-6">
             {showAuthButtons && !isAuthPage && (
               <>
                 <Button 
                   variant="ghost" 
                   onClick={onSignInClick}
-                  className="hover:bg-accent"
+                  className="hover:bg-accent text-base"
                 >
                   Sign In
                 </Button>
                 <Button 
                   variant="hero" 
                   onClick={onSignUpClick}
-                  className="shadow-md"
+                  className="shadow-md text-base px-6 py-2"
                 >
                   Sign Up
                 </Button>
@@ -58,13 +63,13 @@ export const Navbar = ({
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden"
+            className="md:hidden h-10 w-10"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
           >
             {isMenuOpen ? (
-              <X className="h-5 w-5" />
+              <X className="h-6 w-6" />
             ) : (
-              <Menu className="h-5 w-5" />
+              <Menu className="h-6 w-6" />
             )}
           </Button>
         </div>
@@ -72,19 +77,20 @@ export const Navbar = ({
         {/* Mobile Navigation */}
         {isMenuOpen && (
           <div className="md:hidden border-t py-4">
-            <div className="flex flex-col space-y-3">
+            <div className="flex flex-col space-y-4">
               {showAuthButtons && !isAuthPage && (
                 <>
                   <Button 
                     variant="ghost" 
                     onClick={onSignInClick}
-                    className="justify-start"
+                    className="justify-start text-base h-12"
                   >
                     Sign In
                   </Button>
                   <Button 
                     variant="hero" 
                     onClick={onSignUpClick}
+                    className="justify-center text-base h-12"
                   >
                     Sign Up
                   </Button>
